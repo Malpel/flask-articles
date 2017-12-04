@@ -13,7 +13,7 @@ articles_app = Flask(__name__)
 #Config MariaDB
 articles_app.config["MYSQL_HOST"] = "localhost"
 articles_app.config["MYSQL_USER"] = "root"
-articles_app.config["MYSQL_PASSWORD"] = "*********"
+articles_app.config["MYSQL_PASSWORD"] = "*************"
 articles_app.config["MYSQL_DB"] = "articles"
 articles_app.config["MYSQL_CURSORCLASS"] = "DictCursor"
 
@@ -116,7 +116,29 @@ def is_logged_in(f):
 def dashboard():
     return render_template("dashboard.html")
 
+class ArticleForm(Form):
+    title = StringField("Title", [validators.Length(min=1, max=200)])
+    body = TextAreaField("Body", [validators.Length(min=1)])
+    
+@articles_app.route("/add_article", methods=["GET", "POST"])
+@is_logged_in
+def add_article():
+    form = ArticleForm(request.form)
+    if request.method == "POST" and form.validate():
+        title = form.title.data
+        body = form.body.data
+
+        cur = mariaDb.connection.cursor()
+        cur.execute("INSERT INTO Article(title, author, body) VALUES(%s, %s, %s)", (title, session["username"], body))
+        mariaDb.connection.commit()
+        cur.close()
+        flash("Article Created", "success")
+
+        return redirect(url_for("dashboard"))
+    return render_template("add_article.html", form=form)
+
 @articles_app.route("/logout")
+@is_logged_in
 def logout():
     session.clear()
     flash("You are now logged out", "success")
