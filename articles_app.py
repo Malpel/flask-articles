@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from flask import Flask, render_template, flash, redirect, url_for, session, logging, request
-from data import Articles
+#from data import Articles
 from flask_mysqldb import MySQL
 from wtforms import Form, StringField, TextAreaField, PasswordField, validators
 from passlib.hash import sha256_crypt
@@ -13,14 +13,14 @@ articles_app = Flask(__name__)
 #Config MariaDB
 articles_app.config["MYSQL_HOST"] = "localhost"
 articles_app.config["MYSQL_USER"] = "root"
-articles_app.config["MYSQL_PASSWORD"] = "*************"
+articles_app.config["MYSQL_PASSWORD"] = "************"
 articles_app.config["MYSQL_DB"] = "articles"
 articles_app.config["MYSQL_CURSORCLASS"] = "DictCursor"
 
 #init MariaDB
 mariaDb = MySQL(articles_app)
 
-Articles = Articles()
+#Articles = Articles()
 
 @articles_app.route("/")
 def index():
@@ -28,11 +28,24 @@ def index():
 
 @articles_app.route("/articles")
 def articles():
-    return render_template("articles.html", articles=Articles)
+    cur = mariaDb.connection.cursor()
+    result = cur.execute("SELECT * FROM Article")
+    articles = cur.fetchall()
+
+    if result > 0:
+        return render_template("articles.html", articles=articles)
+    else:
+        msg = "No articles found"
+        return render_template("articles.html", msg=msg)
+    
+    cur.close()
 
 @articles_app.route("/articles/<string:id>/")
 def article(id):
-    return render_template("article.html", id=id)
+    cur = mariaDb.connection.cursor()
+    result = cur.execute("SELECT * FROM Article WHERE id = %s", [id])
+    article = cur.fetchone()
+    return render_template("article.html", article=article)
 
 @articles_app.route("/about")
 def about():
@@ -114,7 +127,18 @@ def is_logged_in(f):
 @articles_app.route("/dashboard")
 @is_logged_in
 def dashboard():
-    return render_template("dashboard.html")
+
+    cur = mariaDb.connection.cursor()
+    result = cur.execute("SELECT * FROM Article")
+    articles = cur.fetchall()
+
+    if result > 0:
+        return render_template("dashboard.html", articles=articles)
+    else:
+        msg = "No articles found"
+        return render_template("dashboard.html", msg=msg)
+    
+    cur.close()
 
 class ArticleForm(Form):
     title = StringField("Title", [validators.Length(min=1, max=200)])
