@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import html
 from flask import Flask, render_template, flash, redirect, url_for, session, logging, request
 #from data import Articles
 from flask_mysqldb import MySQL
@@ -13,7 +14,7 @@ articles_app = Flask(__name__)
 #Config MariaDB
 articles_app.config["MYSQL_HOST"] = "localhost"
 articles_app.config["MYSQL_USER"] = "root"
-articles_app.config["MYSQL_PASSWORD"] = "**********************"
+articles_app.config["MYSQL_PASSWORD"] = "mariadpulmunen"
 articles_app.config["MYSQL_DB"] = "articles"
 articles_app.config["MYSQL_CURSORCLASS"] = "DictCursor"
 
@@ -45,6 +46,7 @@ def article(id):
     cur = mariaDb.connection.cursor()
     result = cur.execute("SELECT * FROM Article WHERE id = %s", [id])
     article = cur.fetchone()
+    article = html.unescape(article)
     cur.close()
     return render_template("article.html", article=article)
 
@@ -129,7 +131,7 @@ def is_logged_in(f):
 @is_logged_in
 def dashboard():
     cur = mariaDb.connection.cursor()
-    result = cur.execute("SELECT * FROM Article")
+    result = cur.execute("SELECT * FROM Article WHERE author = %s", [session["username"]])
     articles = cur.fetchall()
 
     if result > 0:
@@ -151,8 +153,6 @@ def add_article():
     if request.method == "POST" and form.validate():
         title = form.title.data
         body = form.body.data
-        # change </br> or </p> to \n maybe and change the first <p>s to nothing/"" with regexp matching or something
-        print(type(body))
         cur = mariaDb.connection.cursor()
         cur.execute("INSERT INTO Article(title, author, body) VALUES(%s, %s, %s)", (title, session["username"], body))
         mariaDb.connection.commit()
@@ -162,11 +162,21 @@ def add_article():
         return redirect(url_for("dashboard"))
     return render_template("add_article.html", form=form)
 
-@articles_app.route("/edit/<string:id>")
+@articles_app.route("/edit/<string:id>", methods=["GET", "POST"])
+@is_logged_in
 def edit(id):
     form = ArticleForm(request.form)
+    if request.method == "POST" and form.validate():
+        title = form.title.data
+        body = form.body.data
+        cur = mariaDb.connection.cursor()
+        cur.execute("UPDATE Article SET title = %s, body = %s, edited = CURRENT_TIMESTAMP WHERE id = %s", (title, body, id))
+        mariaDb.connection.commit()
+        cur.close()
+        flash("Edited", "success")
+        return redirect(url_for("dashboard"))
     cur = mariaDb.connection.cursor()
-    result = cur.execute("SELECT * FROM Article WHERE id = %s", [id])
+    cur.execute("SELECT * FROM Article WHERE id = %s", [id])
     article = cur.fetchone()
     cur.close()
     form.title.data = article["title"]
@@ -174,6 +184,7 @@ def edit(id):
     return render_template("edit.html", form=form, article=article)
 
 @articles_app.route("/delete/<string:id>/")
+@is_logged_in
 def delete(id):
     cur = mariaDb.connection.cursor()
     cur.execute("DELETE FROM Article WHERE id = %s", [id])

@@ -2,9 +2,11 @@
 
 {% block body %}
     <h1>{{article.title}}</h1>
-    <small>Written by {{article.author}}, {{article.create_date}}</small>
+    <small>Written by {{article.author}}, {{article.create_date}} {% if article.edited %}, last edited {{article.edited}} {% endif %}</small>
     <hr>
     <div>
-        {{article.body}}
+
+        {{ article.body|safe }}
+        
     </div>
 {% endblock %}
