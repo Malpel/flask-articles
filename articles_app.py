@@ -10,18 +10,20 @@ from functools import wraps
 
 
 articles_app = Flask(__name__)
+with open("pwd.txt") as f:
+    pwd = f.read()
+
 
 #Config MariaDB
 articles_app.config["MYSQL_HOST"] = "localhost"
 articles_app.config["MYSQL_USER"] = "root"
-articles_app.config["MYSQL_PASSWORD"] = "mariadpulmunen"
+articles_app.config["MYSQL_PASSWORD"] = pwd
 articles_app.config["MYSQL_DB"] = "articles"
 articles_app.config["MYSQL_CURSORCLASS"] = "DictCursor"
 
 #init MariaDB
 mariaDb = MySQL(articles_app)
 
-#Articles = Articles()
 
 @articles_app.route("/")
 def index():
@@ -45,7 +47,7 @@ def articles():
 def article(id):
     cur = mariaDb.connection.cursor()
     result = cur.execute("SELECT * FROM Article WHERE id = %s", [id])
-    article = cur.fetchone()
+    article = cur.fetchone() # why is this part like this
     article = html.unescape(article)
     cur.close()
     return render_template("article.html", article=article)
